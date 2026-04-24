@@ -1,7 +1,8 @@
-require('dotenv').config();
+require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const path = require('path');
 
 const authRoutes = require('./routes/auth');
 const departmentRoutes = require('./routes/departments');
@@ -31,6 +32,20 @@ app.use('/api/resigned-employees', resignedEmployeeRoutes);
 app.use('/api/insurance', insuranceRoutes);
 app.use('/api/new-employees', newEmployeesRoutes);
 app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date() }));
+
+// Serve static files from the React app
+const clientDistPath = path.join(__dirname, '..', 'client', 'dist');
+app.use(express.static(clientDistPath));
+
+// Handle React routing, return all requests to React app
+app.use((req, res) => {
+    // If it's an API request that wasn't caught by the routes above, return 404
+    if (req.path.startsWith('/api')) {
+        return res.status(404).json({ message: 'API route not found' });
+    }
+    // Otherwise serve index.html
+    res.sendFile(path.join(clientDistPath, 'index.html'));
+});
 
 // Initial seeding of departments
 async function seedDepartments() {
