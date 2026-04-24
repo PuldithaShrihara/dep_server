@@ -43,8 +43,14 @@ app.use((req, res) => {
     if (req.path.startsWith('/api')) {
         return res.status(404).json({ message: 'API route not found' });
     }
-    // Otherwise serve index.html
-    res.sendFile(path.join(clientDistPath, 'index.html'));
+    
+    // Serve index.html
+    res.sendFile(path.join(clientDistPath, 'index.html'), (err) => {
+        if (err) {
+            console.error('Error serving index.html:', err);
+            res.status(500).send('Frontend build not found. Please run "npm run build" in the client folder.');
+        }
+    });
 });
 
 // Initial seeding of departments
