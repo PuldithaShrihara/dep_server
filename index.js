@@ -1,4 +1,5 @@
 require('dotenv').config({ path: require('path').join(__dirname, '.env') });
+const fs = require('fs');
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -33,22 +34,34 @@ app.use('/api/insurance', insuranceRoutes);
 app.use('/api/new-employees', newEmployeesRoutes);
 app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date() }));
 
-// Serve static files from the React app
-const clientDistPath = path.join(__dirname, '..', 'client', 'dist');
+// Serve the Vite React build (path is repo-root/client/dist when server runs from server/)
+const clientDistPath = path.resolve(__dirname, '..', 'client', 'dist');
+const indexHtmlPath = path.join(clientDistPath, 'index.html');
+
+if (!fs.existsSync(clientDistPath)) {
+    console.warn(
+        `⚠ React build folder not found at ${clientDistPath}. ` +
+            'Run "npm run build" at the repo root (or Render buildCommand) before deploying.'
+    );
+} else if (!fs.existsSync(indexHtmlPath)) {
+    console.warn(`⚠ Missing ${indexHtmlPath}; SPA fallback will fail until client is built.`);
+}
+
 app.use(express.static(clientDistPath));
 
-// Handle React routing, return all requests to React app
-app.use((req, res) => {
-    // If it's an API request that wasn't caught by the routes above, return 404
+// SPA fallback: MUST be registered after /api routes and express.static.
+// Express 5 path patterns: use /*splat (plain "*" is invalid in path-to-regexp v6).
+app.get('/*splat', (req, res) => {
     if (req.path.startsWith('/api')) {
         return res.status(404).json({ message: 'API route not found' });
     }
-    
-    // Serve index.html
-    res.sendFile(path.join(clientDistPath, 'index.html'), (err) => {
+
+    res.sendFile(indexHtmlPath, (err) => {
         if (err) {
             console.error('Error serving index.html:', err);
-            res.status(500).send('Frontend build not found. Please run "npm run build" in the client folder.');
+            res.status(500).send(
+                'Frontend build not found. Please run "npm run build" in the client folder.'
+            );
         }
     });
 });
