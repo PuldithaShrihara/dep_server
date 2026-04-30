@@ -56,12 +56,12 @@ app.get('/*splat', (req, res) => {
         return res.status(404).json({ message: 'API route not found' });
     }
 
-    res.sendFile(indexHtmlPath, (err) => {
+    // Serve index.html
+    const indexPath = path.join(clientDistPath, 'index.html');
+    res.sendFile(indexPath, (err) => {
         if (err) {
-            console.error('Error serving index.html:', err);
-            res.status(500).send(
-                'Frontend build not found. Please run "npm run build" in the client folder.'
-            );
+            console.error(`✗ Error serving index.html at ${indexPath}:`, err.message);
+            res.status(500).send('Frontend build not found or index.html missing. Please run "npm run build" in the client folder.');
         }
     });
 });
