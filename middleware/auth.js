@@ -10,26 +10,33 @@ const authMiddleware = async (req, res, next) => {
     }
 
     if (!token) {
-        // Developer Bypass: If no token provided, automatically log in as sadmin
-        const sadmin = await User.findOne({ username: 'sadmin' });
-        if (sadmin) {
-            req.user = {
-                id: sadmin._id,
-                role: sadmin.role,
-                department: sadmin.department,
-                username: sadmin.username,
-                fullName: sadmin.fullName,
-                email: sadmin.email,
-                status: sadmin.status
-            };
-            return next();
+        // Never impersonate in production — breaks real auth and confuses /api/auth/me in hosted apps.
+        if (process.env.NODE_ENV !== 'production' && process.env.AUTH_DEV_NO_TOKEN_BYPASS === 'true') {
+            const sadmin = await User.findOne({ username: 'sadmin' });
+            if (sadmin) {
+                req.user = {
+                    id: sadmin._id,
+                    role: sadmin.role,
+                    department: sadmin.department,
+                    username: sadmin.username,
+                    fullName: sadmin.fullName,
+                    email: sadmin.email,
+                    status: sadmin.status
+                };
+                return next();
+            }
         }
         return res.status(401).json({ message: 'No token, authorization denied' });
     }
 
+    let decoded;
     try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch {
+        return res.status(401).json({ message: 'Token is not valid' });
+    }
 
+    try {
         const user = await User.findById(decoded.id).select('-password');
         if (!user) {
             return res.status(401).json({ message: 'User not found' });
@@ -50,7 +57,8 @@ const authMiddleware = async (req, res, next) => {
         };
         next();
     } catch (err) {
-        res.status(401).json({ message: 'Token is not valid' });
+        console.error('authMiddleware user lookup failed:', err);
+        return res.status(500).json({ message: 'Authentication service unavailable' });
     }
 };
 
