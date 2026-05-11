@@ -77,7 +77,13 @@ function migrateLegacyRdTasksToNested(tasks) {
             if (current) groups.push(current);
             current = {
                 title: product,
+                responsible: row.marketingChannel || '',
+                assignedEmployee: row.owner || '',
                 status: row.status || 'planning',
+                remark: [row.mainGoal, row.description].filter(Boolean).join(' — ') || '',
+                startDate: row.startDate || '',
+                endDate: row.endDate || '',
+                isDone: !!(row.done || (row.status || '').toLowerCase() === 'completed'),
                 isManualStatusOverride: false,
                 subtasks: []
             };

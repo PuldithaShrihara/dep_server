@@ -14,7 +14,13 @@ const rdSubtaskSchema = new mongoose.Schema({
 
 const rdMainTaskSchema = new mongoose.Schema({
     title: { type: String, default: '' },
+    responsible: { type: String, default: '' },
+    assignedEmployee: { type: String, default: '' },
     status: { type: String, default: 'planning' },
+    remark: { type: String, default: '' },
+    startDate: { type: String, default: '' },
+    endDate: { type: String, default: '' },
+    isDone: { type: Boolean, default: false },
     isManualStatusOverride: { type: Boolean, default: false },
     subtasks: [rdSubtaskSchema]
 }, { _id: true });
