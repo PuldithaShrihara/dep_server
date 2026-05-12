@@ -314,7 +314,43 @@ router.delete('/:id/rd/subtasks/:subtaskId', authMiddleware, departmentEditMiddl
     }
 });
 
-// Delete a plan - Admin can delete any, Managers can delete their own department
+// --- Product Management ---
+router.post('/:id/products', authMiddleware, departmentEditMiddleware, async (req, res) => {
+    try {
+        const plan = await Plan.findById(req.params.id);
+        if (!plan) return res.status(404).json({ message: 'Plan not found' });
+
+        if (!plan.products) plan.products = [];
+        plan.products.push({
+            name: req.body.name,
+            description: req.body.description,
+            image: req.body.image
+        });
+
+        await plan.save();
+        res.status(201).json(plan);
+    } catch (err) {
+        console.error('Error adding product:', err);
+        res.status(400).json({ message: err.message });
+    }
+});
+
+router.delete('/:id/products/:productName', authMiddleware, departmentEditMiddleware, async (req, res) => {
+    try {
+        const plan = await Plan.findById(req.params.id);
+        if (!plan) return res.status(404).json({ message: 'Plan not found' });
+
+        if (!plan.products) return res.status(404).json({ message: 'No products found' });
+
+        plan.products = plan.products.filter(p => p.name !== req.params.productName);
+        await plan.save();
+        res.json(plan);
+    } catch (err) {
+        console.error('Error deleting product:', err);
+        res.status(400).json({ message: err.message });
+    }
+});
+
 router.delete('/:id', authMiddleware, departmentEditMiddleware, async (req, res) => {
     try {
         const plan = await Plan.findByIdAndDelete(req.params.id);

@@ -78,7 +78,12 @@ const planSchema = new mongoose.Schema({
     rdMainTasks: {
         type: [rdMainTaskSchema],
         default: undefined
-    }
+    },
+    products: [{
+        name: { type: String, required: true },
+        description: { type: String },
+        image: { type: String }
+    }]
 }, { timestamps: true });
 
 module.exports = mongoose.model('Plan', planSchema);
