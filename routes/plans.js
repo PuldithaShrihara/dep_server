@@ -94,11 +94,14 @@ router.post('/', authMiddleware, departmentEditMiddleware, async (req, res) => {
             if (lastPlan && lastPlan.products && lastPlan.products.length > 0) {
                 newPlan.products = lastPlan.products.map(p => ({
                     name: p.name,
-                    description: p.description,
-                    image: p.image
+                    image: p.image,
+                    category: p.category || 'Campaign'
                 }));
             }
         }
+
+        // Ensure tasks is always an array
+        if (!newPlan.tasks) newPlan.tasks = [];
 
         if (newPlan.rdMainTasks && newPlan.rdMainTasks.length) {
             newPlan.tasks = [];
