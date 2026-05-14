@@ -84,6 +84,22 @@ router.post('/', authMiddleware, departmentEditMiddleware, async (req, res) => {
             rdMainTasks: rdMainTasks !== undefined ? rdMainTasks : undefined
         });
 
+        // Inherit products for Marketing department from the most recent previous plan
+        const dept = await Department.findById(department);
+        if (dept && dept.name === 'Marketing') {
+            const lastPlan = await Plan.findOne({ department: department })
+                .sort({ year: -1, month: -1 })
+                .limit(1);
+            
+            if (lastPlan && lastPlan.products && lastPlan.products.length > 0) {
+                newPlan.products = lastPlan.products.map(p => ({
+                    name: p.name,
+                    description: p.description,
+                    image: p.image
+                }));
+            }
+        }
+
         if (newPlan.rdMainTasks && newPlan.rdMainTasks.length) {
             newPlan.tasks = [];
         }
@@ -340,13 +356,13 @@ router.delete('/:id/products/:productName', authMiddleware, departmentEditMiddle
         const plan = await Plan.findById(req.params.id);
         if (!plan) return res.status(404).json({ message: 'Plan not found' });
 
-        if (!plan.products) return res.status(404).json({ message: 'No products found' });
-
         const pName = req.params.productName;
         const pNameLower = pName.toLowerCase();
 
-        // 1. Remove from the products definition array
-        plan.products = plan.products.filter(p => p.name !== pName);
+        // 1. Remove from the products definition array (if it exists)
+        if (plan.products && Array.isArray(plan.products)) {
+            plan.products = plan.products.filter(p => p.name !== pName);
+        }
 
         // 2. Remove all associated tasks/campaigns
         if (Array.isArray(plan.tasks)) {
@@ -358,7 +374,6 @@ router.delete('/:id/products/:productName', authMiddleware, departmentEditMiddle
                 return !matches;
             });
             
-            // Explicitly mark as modified if length changed
             if (plan.tasks.length !== originalLength) {
                 plan.markModified('tasks');
             }
