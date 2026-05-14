@@ -342,7 +342,28 @@ router.delete('/:id/products/:productName', authMiddleware, departmentEditMiddle
 
         if (!plan.products) return res.status(404).json({ message: 'No products found' });
 
-        plan.products = plan.products.filter(p => p.name !== req.params.productName);
+        const pName = req.params.productName;
+        const pNameLower = pName.toLowerCase();
+
+        // 1. Remove from the products definition array
+        plan.products = plan.products.filter(p => p.name !== pName);
+
+        // 2. Remove all associated tasks/campaigns
+        if (Array.isArray(plan.tasks)) {
+            const originalLength = plan.tasks.length;
+            plan.tasks = plan.tasks.filter(t => {
+                const taskProdLower = (t.product || '').toLowerCase();
+                const taskAssetsLower = (t.assets || '').toLowerCase();
+                const matches = (taskProdLower === pNameLower || taskAssetsLower === pNameLower);
+                return !matches;
+            });
+            
+            // Explicitly mark as modified if length changed
+            if (plan.tasks.length !== originalLength) {
+                plan.markModified('tasks');
+            }
+        }
+
         await plan.save();
         res.json(plan);
     } catch (err) {
