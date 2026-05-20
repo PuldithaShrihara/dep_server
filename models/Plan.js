@@ -74,7 +74,10 @@ const planSchema = new mongoose.Schema({
         completedTime: String,
         reportTo: String,
         _isSubtask: { type: Boolean, default: false },
-        productImage: String
+        productImage: String,
+        expectedOutcome: String,
+        duration: String,
+        attachments: String
     }],
     /** R&D nested main tasks with subtasks (parent-child). Legacy flat `tasks` may still exist until migrated. */
     rdMainTasks: {

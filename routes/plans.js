@@ -70,6 +70,7 @@ router.get('/department/:deptId', authMiddleware, async (req, res) => {
 
 // Create a new plan - Admin can create for any department, Managers can create for their own department
 router.post('/', authMiddleware, departmentEditMiddleware, async (req, res) => {
+    console.log(`[DEBUG] POST /api/plans hit with body:`, req.body);
     const { department, month, year, title, description, target, tasks, rdMainTasks } = req.body;
 
     try {
@@ -86,17 +87,39 @@ router.post('/', authMiddleware, departmentEditMiddleware, async (req, res) => {
 
         // Inherit products for Marketing department from the most recent previous plan
         const dept = await Department.findById(department);
+        console.log(`[DEBUG] Creating plan for department: ${dept ? dept.name : 'NOT FOUND'}`);
         if (dept && dept.name === 'Marketing') {
-            const lastPlan = await Plan.findOne({ department: department })
-                .sort({ year: -1, month: -1 })
-                .limit(1);
+            const lastPlan = await Plan.findOne({ 
+                department: department,
+                "products.0": { $exists: true } // Only inherit from a plan that actually has products
+            }).sort({ year: -1, month: -1 }).limit(1);
             
+            console.log(`[DEBUG] Last plan found with products: ${lastPlan ? lastPlan.title : 'NONE'}`);
+
+            const MARKETING_TEMPLATE = [
+                { name: 'FADNA TEA', category: 'Fadna', image: '/skincare_product_1_1778561641568.png' },
+                { name: 'SATINY', category: 'Quality of Life', image: '/skincare_product_2_1778561675994.png' },
+                { name: 'MOIST CURL', category: 'Quality of Life', image: '/skincare_product_3_1778561699216.png' },
+                { name: 'ZETGAIN', category: 'Quality of Life', image: '/skincare_product_1_1778561641568.png' },
+                { name: 'GLORREA', category: 'Quality of Life', image: '/skincare_product_2_1778561675994.png' },
+                { name: 'ACNEME', category: 'Quality of Life', image: '/skincare_product_3_1778561699216.png' },
+                { name: 'EYEON', category: 'Quality of Life', image: '/skincare_product_1_1778561641568.png' },
+                { name: 'GLOMIX', category: 'Quality of Life', image: '/skincare_product_2_1778561675994.png' },
+                { name: 'LIVER U', category: 'Life Science', image: '/skincare_product_3_1778561699216.png' },
+                { name: 'ORTHOSHIELD', category: 'Life Science', image: '/skincare_product_1_1778561641568.png' },
+                { name: 'M+', category: 'Life Science', image: '/skincare_product_2_1778561675994.png' }
+            ];
+
             if (lastPlan && lastPlan.products && lastPlan.products.length > 0) {
+                console.log(`[DEBUG] Inheriting ${lastPlan.products.length} products from ${lastPlan.title}`);
                 newPlan.products = lastPlan.products.map(p => ({
                     name: p.name,
                     image: p.image,
                     category: p.category || 'Campaign'
                 }));
+            } else {
+                console.log(`[DEBUG] No previous plans with products found. Using hardcoded MARKETING_TEMPLATE.`);
+                newPlan.products = MARKETING_TEMPLATE;
             }
         }
 
