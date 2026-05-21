@@ -38,7 +38,9 @@ function logRequestDebug(req) {
 
 router.get('/', authMiddleware, async (req, res) => {
     try {
-        const products = await Product.find().sort({ createdAt: -1 });
+        const { departmentId } = req.query;
+        const filter = departmentId ? { departmentId } : {};
+        const products = await Product.find(filter).sort({ createdAt: -1 });
         res.json(products);
     } catch (err) {
         console.error('Error fetching products:', err);
@@ -48,6 +50,9 @@ router.get('/', authMiddleware, async (req, res) => {
 
 router.post('/', authMiddleware, upload.single('image'), async (req, res) => {
     try {
+        const fs = require('fs');
+        fs.appendFileSync('post_log.txt', JSON.stringify({ body: req.body, file: req.file ? req.file.originalname : null }) + '\n');
+        
         const body = req.body && typeof req.body === 'object' ? req.body : {};
         const { name, description = '', category = '', planId, departmentId } = body;
         const imagePath = req.file ? `/uploads/products/${req.file.filename}` : '';
@@ -74,15 +79,18 @@ router.post('/', authMiddleware, upload.single('image'), async (req, res) => {
             category: category || '',
             image: imagePath,
             imageUrl: imagePath,
+            createdInPlanId: planId || null,
             planId: planId || null,
-            departmentId: departmentId || linkedPlan?.department || null
+            departmentId: finalDeptId
         });
 
         const savedProduct = await product.save();
 
-        if (linkedPlan) {
-            linkedPlan.products.push(savedProduct._id);
-            await linkedPlan.save();
+        if (finalDeptId) {
+            await Plan.updateMany(
+                { department: finalDeptId },
+                { $addToSet: { products: savedProduct._id } }
+            );
         }
 
         res.status(201).json(savedProduct);

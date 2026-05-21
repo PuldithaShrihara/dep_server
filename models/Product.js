@@ -6,6 +6,7 @@ const productSchema = new mongoose.Schema({
     category: { type: String, default: '' },
     image: { type: String, default: '' },
     imageUrl: { type: String, default: '' },
+    createdInPlanId: { type: mongoose.Schema.Types.ObjectId, ref: 'Plan', default: null },
     planId: { type: mongoose.Schema.Types.ObjectId, ref: 'Plan', default: null },
     departmentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Department', required: true }
 }, { timestamps: true });

@@ -258,6 +258,23 @@ router.post('/', authMiddleware, departmentEditMiddleware, async (req, res) => {
     }
 });
 
+// Get a single plan by ID
+router.get('/:id', authMiddleware, async (req, res) => {
+    try {
+        const plan = await Plan.findById(req.params.id)
+            .populate('products')
+            .populate('department');
+
+        if (!plan) {
+            return res.status(404).json({ message: 'Plan not found' });
+        }
+
+        res.json(plan);
+    } catch (error) {
+        res.status(500).json({ message: 'Failed to fetch plan', error: error.message });
+    }
+});
+
 // Update plan metadata (title/month/status/products)
 router.put('/:id', authMiddleware, departmentEditMiddleware, async (req, res) => {
     logRequestDebug(req);
