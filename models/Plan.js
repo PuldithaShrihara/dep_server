@@ -8,6 +8,7 @@ const rdSubtaskSchema = new mongoose.Schema({
     remark: { type: String, default: '' },
     startDate: { type: String, default: '' },
     endDate: { type: String, default: '' },
+    dateCompleted: { type: Date, default: null },
     isDone: { type: Boolean, default: false },
     taskId: { type: mongoose.Schema.Types.ObjectId }
 }, { _id: true });
@@ -20,6 +21,7 @@ const rdMainTaskSchema = new mongoose.Schema({
     remark: { type: String, default: '' },
     startDate: { type: String, default: '' },
     endDate: { type: String, default: '' },
+    dateCompleted: { type: Date, default: null },
     isDone: { type: Boolean, default: false },
     isManualStatusOverride: { type: Boolean, default: false },
     subtasks: [rdSubtaskSchema]
@@ -72,6 +74,7 @@ const planSchema = new mongoose.Schema({
         notes: String,
         completedBy: String,
         completedTime: String,
+        dateCompleted: Date,
         reportTo: String,
         _isSubtask: { type: Boolean, default: false },
         productImage: String,
@@ -85,6 +88,7 @@ const planSchema = new mongoose.Schema({
         default: undefined
     },
     products: [{
+        productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },
         name: { type: String, required: true },
         description: { type: String },
         image: { type: String },

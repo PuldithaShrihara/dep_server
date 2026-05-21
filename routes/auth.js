@@ -22,7 +22,7 @@ function userPublicFields(user) {
 // Secured: only admins can call legacy register (prefer POST /api/users).
 router.post('/register', authMiddleware, requireAdmin, async (req, res) => {
     try {
-        const { username, password, role, department, fullName, email, status } = req.body;
+        const { username, password, role, department, fullName, email, status } = req.body || {};
         const pwdErr = validatePassword(password);
         if (pwdErr) return res.status(400).json({ message: pwdErr });
 
@@ -49,7 +49,7 @@ router.post('/register', authMiddleware, requireAdmin, async (req, res) => {
 
 router.post('/login', async (req, res) => {
     try {
-        const { username, password } = req.body;
+        const { username, password } = req.body || {};
         const user = await User.findOne({ username });
         if (!user) return res.status(404).json({ message: 'User not found' });
 

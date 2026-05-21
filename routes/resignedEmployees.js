@@ -22,7 +22,7 @@ router.get('/entries', authMiddleware, async (req, res) => {
 // Create or update an entry
 router.post('/entry', authMiddleware, async (req, res) => {
     try {
-        const { month, year, entry } = req.body;
+        const { month, year, entry } = req.body || {};
         
         let savedEntry;
         if (entry._id || entry.id) {

@@ -125,7 +125,7 @@ router.get('/tasks', async (req, res) => {
 /** POST /api/tasks — add a new custom task to an area */
 router.post('/tasks', async (req, res) => {
     try {
-        const { areaId, label, subLabel } = req.body;
+        const { areaId, label, subLabel } = req.body || {};
         if (!mongoose.isValidObjectId(areaId)) {
             return res.status(400).json({ message: 'Invalid areaId' });
         }
@@ -352,7 +352,7 @@ router.delete('/completions/:id', async (req, res) => {
 router.patch('/completions/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const { memberId, observedByMemberId, remarks } = req.body;
+        const { memberId, observedByMemberId, remarks } = req.body || {};
         if (!mongoose.isValidObjectId(id)) return res.status(400).json({ message: 'Invalid completion Reference ID' });
 
         const updateData = {};

@@ -1,5 +1,6 @@
 const express = require('express');
 const Plan = require('../models/Plan');
+const Product = require('../models/Product');
 const Department = require('../models/Department');
 const { authMiddleware, departmentEditMiddleware } = require('../middleware/auth');
 const HrTask = require('../models/HrTask');
@@ -13,6 +14,14 @@ const {
 
 const router = express.Router();
 
+function logRequestDebug(req) {
+    console.log('METHOD:', req.method);
+    console.log('URL:', req.originalUrl);
+    console.log('CONTENT TYPE:', req.headers['content-type']);
+    console.log('BODY:', req.body);
+    console.log('FILE:', req.file);
+}
+
 function findSubtaskInPlan(plan, subtaskId) {
     if (!plan.rdMainTasks?.length) return null;
     const sid = subtaskId.toString();
@@ -22,6 +31,54 @@ function findSubtaskInPlan(plan, subtaskId) {
         if (si !== -1) return { mainTask: mt, mainIndex: mi, subIndex: si, sub: mt.subtasks[si] };
     }
     return null;
+}
+
+function isMarketingTaskCompleted(task) {
+    const status = (task?.status || '').toLowerCase();
+    return status === 'completed' || (task?.done === true && !status);
+}
+
+function applyNestedCompletionDate(task, incomingStatus, incomingIsDone) {
+    const status = incomingStatus !== undefined ? incomingStatus : task.status;
+    const isDone = incomingIsDone !== undefined ? incomingIsDone : task.isDone;
+    const normalizedStatus = (status || '').toLowerCase();
+    const completed = normalizedStatus === 'completed' || (isDone === true && !normalizedStatus);
+    task.dateCompleted = completed ? (task.dateCompleted || new Date()) : null;
+}
+
+function normalizeMarketingTaskCompletionDates(incomingTasks = [], existingTasks = []) {
+    if (!Array.isArray(incomingTasks)) return incomingTasks;
+
+    return incomingTasks.map((task, index) => {
+        const nextTask = { ...task };
+        const previousTask = existingTasks[index] || {};
+
+        if (isMarketingTaskCompleted(nextTask)) {
+            const existingDate =
+                nextTask.dateCompleted ||
+                nextTask.completedTime ||
+                previousTask.dateCompleted ||
+                previousTask.completedTime;
+
+            const date = existingDate ? new Date(existingDate) : new Date();
+            nextTask.dateCompleted = Number.isNaN(date.getTime()) ? new Date() : date;
+
+            if (!nextTask.completedTime) {
+                nextTask.completedTime = formatDateTime(nextTask.dateCompleted);
+            }
+        } else {
+            nextTask.dateCompleted = null;
+            nextTask.completedTime = '';
+        }
+
+        return nextTask;
+    });
+}
+
+function formatDateTime(value) {
+    const date = value instanceof Date ? value : new Date(value);
+    const pad = (num) => String(num).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 }
 
 // Get plans for a department - ALL authenticated users can view
@@ -71,7 +128,7 @@ router.get('/department/:deptId', authMiddleware, async (req, res) => {
 // Create a new plan - Admin can create for any department, Managers can create for their own department
 router.post('/', authMiddleware, departmentEditMiddleware, async (req, res) => {
     console.log(`[DEBUG] POST /api/plans hit with body:`, req.body);
-    const { department, month, year, title, description, target, tasks, rdMainTasks } = req.body;
+    const { department, month, year, title, description, target, tasks, rdMainTasks, productIds } = req.body || {};
 
     try {
         const newPlan = new Plan({
@@ -81,9 +138,20 @@ router.post('/', authMiddleware, departmentEditMiddleware, async (req, res) => {
             title,
             description,
             target,
-            tasks: tasks || [],
+            tasks: normalizeMarketingTaskCompletionDates(tasks || []),
             rdMainTasks: rdMainTasks !== undefined ? rdMainTasks : undefined
         });
+
+        if (Array.isArray(productIds) && productIds.length > 0) {
+            const products = await Product.find({ _id: { $in: productIds } });
+            newPlan.products = products.map(p => ({
+                productId: p._id,
+                name: p.name,
+                description: p.description,
+                image: p.image,
+                category: p.category
+            }));
+        }
 
         // Inherit products for Marketing department from the most recent previous plan
         const dept = await Department.findById(department);
@@ -156,15 +224,46 @@ router.post('/', authMiddleware, departmentEditMiddleware, async (req, res) => {
     }
 });
 
+// Update plan metadata (title/month/status/products)
+router.put('/:id', authMiddleware, departmentEditMiddleware, async (req, res) => {
+    logRequestDebug(req);
+
+    try {
+        const { title, month, status, products } = req.body || {};
+        const updateData = {};
+
+        if (title !== undefined) updateData.title = title;
+        if (month !== undefined) updateData.month = month;
+        if (status !== undefined) updateData.status = status;
+        if (products !== undefined) updateData.products = products;
+
+        const plan = await Plan.findByIdAndUpdate(req.params.id, updateData, {
+            new: true,
+            runValidators: true
+        });
+
+        if (!plan) {
+            return res.status(404).json({ message: 'Plan not found' });
+        }
+
+        res.json(plan);
+    } catch (error) {
+        console.error('Error updating plan:', error);
+        res.status(500).json({ message: error.message });
+    }
+});
+
 // Update a plan (tasks and/or R&D nested rdMainTasks and metadata)
 router.put('/:id/tasks', authMiddleware, departmentEditMiddleware, async (req, res) => {
+    logRequestDebug(req);
+
     try {
         const plan = await Plan.findById(req.params.id);
         if (!plan) {
             return res.status(404).json({ message: 'Plan not found' });
         }
 
-        const { tasks, rdMainTasks, title, month, year, description, target } = req.body;
+        const { tasks, rdMainTasks, title, month, year, description, target } = req.body || {};
 
         if (title !== undefined) plan.title = title;
         if (month !== undefined) plan.month = month;
@@ -172,7 +271,7 @@ router.put('/:id/tasks', authMiddleware, departmentEditMiddleware, async (req, r
         if (description !== undefined) plan.description = description;
         if (target !== undefined) plan.target = target;
         if (tasks !== undefined) {
-            plan.tasks = tasks;
+            plan.tasks = normalizeMarketingTaskCompletionDates(tasks, plan.tasks || []);
             // Also update rdMainTasks if this is an R&D department plan
             const dept = await Department.findById(plan.department);
             if (dept && dept.name === 'R&D') {
@@ -207,11 +306,13 @@ router.post('/:id/rd/main-tasks', authMiddleware, departmentEditMiddleware, asyn
         const plan = await Plan.findById(req.params.id);
         if (!plan) return res.status(404).json({ message: 'Plan not found' });
 
+        const body = req.body || {};
         if (!plan.rdMainTasks) plan.rdMainTasks = [];
         plan.rdMainTasks.push({
-            title: req.body.title || '',
-            status: req.body.status || 'planning',
-            isManualStatusOverride: !!req.body.isManualStatusOverride,
+            title: body.title || '',
+            status: body.status || 'planning',
+            isManualStatusOverride: !!body.isManualStatusOverride,
+            dateCompleted: (body.status || '').toLowerCase() === 'completed' || (body.isDone === true && !body.status) ? new Date() : null,
             subtasks: []
         });
         attachSubtaskTaskIds(plan.rdMainTasks);
@@ -228,20 +329,22 @@ router.post('/:id/rd/main-tasks/:mainTaskId/subtasks', authMiddleware, departmen
         const plan = await Plan.findById(req.params.id);
         if (!plan) return res.status(404).json({ message: 'Plan not found' });
 
+        const body = req.body || {};
         if (!plan.rdMainTasks) plan.rdMainTasks = [];
 
         const mt = plan.rdMainTasks.id(req.params.mainTaskId);
         if (!mt) return res.status(404).json({ message: 'Main task not found' });
 
         mt.subtasks.push({
-            title: req.body.title || '',
-            responsible: req.body.responsible || '',
-            assignedEmployee: req.body.assignedEmployee || '',
-            status: req.body.status || 'planning',
-            remark: req.body.remark || '',
-            startDate: req.body.startDate || '',
-            endDate: req.body.endDate || '',
-            isDone: !!req.body.isDone,
+            title: body.title || '',
+            responsible: body.responsible || '',
+            assignedEmployee: body.assignedEmployee || '',
+            status: body.status || 'planning',
+            remark: body.remark || '',
+            startDate: body.startDate || '',
+            endDate: body.endDate || '',
+            dateCompleted: (body.status || '').toLowerCase() === 'completed' || (body.isDone === true && !body.status) ? new Date() : null,
+            isDone: !!body.isDone,
             taskId: mt._id
         });
         reconcileRdMainTask(mt);
@@ -267,15 +370,19 @@ router.patch('/:id/rd/main-tasks/:mainTaskId', authMiddleware, departmentEditMid
         const mt = plan.rdMainTasks.id(req.params.mainTaskId);
         if (!mt) return res.status(404).json({ message: 'Main task not found' });
 
-        if (req.body.title !== undefined) mt.title = req.body.title;
-        if (req.body.status !== undefined) {
-            mt.status = req.body.status;
-            if (req.body.isManualStatusOverride === undefined) {
+        const body = req.body || {};
+        if (body.title !== undefined) mt.title = body.title;
+        if (body.status !== undefined) {
+            mt.status = body.status;
+            if (body.isManualStatusOverride === undefined) {
                 mt.isManualStatusOverride = true;
             }
         }
-        if (req.body.isManualStatusOverride !== undefined) {
-            mt.isManualStatusOverride = !!req.body.isManualStatusOverride;
+        if (body.isManualStatusOverride !== undefined) {
+            mt.isManualStatusOverride = !!body.isManualStatusOverride;
+        }
+        if (body.status !== undefined || body.isDone !== undefined) {
+            applyNestedCompletionDate(mt, body.status, body.isDone);
         }
         reconcileRdMainTask(mt);
         attachSubtaskTaskIds(plan.rdMainTasks);
@@ -296,7 +403,7 @@ router.patch('/:id/rd/subtasks/:subtaskId', authMiddleware, departmentEditMiddle
         if (!loc) return res.status(404).json({ message: 'Subtask not found' });
 
         const s = loc.sub;
-        const body = req.body;
+        const body = req.body || {};
         if (body.title !== undefined) s.title = body.title;
         if (body.responsible !== undefined) s.responsible = body.responsible;
         if (body.assignedEmployee !== undefined) s.assignedEmployee = body.assignedEmployee;
@@ -305,6 +412,9 @@ router.patch('/:id/rd/subtasks/:subtaskId', authMiddleware, departmentEditMiddle
         if (body.startDate !== undefined) s.startDate = body.startDate;
         if (body.endDate !== undefined) s.endDate = body.endDate;
         if (body.isDone !== undefined) s.isDone = !!body.isDone;
+        if (body.status !== undefined || body.isDone !== undefined) {
+            applyNestedCompletionDate(s, body.status, body.isDone);
+        }
 
         s.taskId = loc.mainTask._id;
         reconcileRdMainTask(loc.mainTask);
@@ -359,16 +469,40 @@ router.delete('/:id/rd/subtasks/:subtaskId', authMiddleware, departmentEditMiddl
 
 // --- Product Management ---
 router.post('/:id/products', authMiddleware, departmentEditMiddleware, async (req, res) => {
+    logRequestDebug(req);
+
     try {
         const plan = await Plan.findById(req.params.id);
         if (!plan) return res.status(404).json({ message: 'Plan not found' });
 
+        const { productId, name, description = '', image = '', category = '' } = req.body || {};
+        let productEntry = {
+            name: (name || '').trim(),
+            description,
+            image,
+            category
+        };
+
+        if (productId) {
+            const product = await Product.findById(productId);
+            if (!product) {
+                return res.status(404).json({ message: 'Linked global product not found' });
+            }
+            productEntry = {
+                productId: product._id,
+                name: product.name,
+                description: product.description,
+                image: product.image,
+                category: product.category
+            };
+        }
+
+        if (!productEntry.name) {
+            return res.status(400).json({ message: 'Product name is required' });
+        }
+
         if (!plan.products) plan.products = [];
-        plan.products.push({
-            name: req.body.name,
-            description: req.body.description,
-            image: req.body.image
-        });
+        plan.products.push(productEntry);
 
         await plan.save();
         res.status(201).json(plan);

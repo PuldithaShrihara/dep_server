@@ -55,17 +55,18 @@ router.get('/entries', async (req, res) => {
 
 router.post('/entry', async (req, res) => {
     try {
-        const month = Number(req.body.month ?? req.query.month);
-        const year = Number(req.body.year ?? req.query.year);
+        const body = req.body || {};
+        const month = Number(body.month ?? req.query.month);
+        const year = Number(body.year ?? req.query.year);
         if (!Number.isFinite(month) || month < 1 || month > 12) return res.status(400).json({ message: 'Invalid or missing month (1-12)' });
         if (!Number.isFinite(year) || year < 2000 || year > 2100) return res.status(400).json({ message: 'Invalid or missing year' });
 
-        const namespace = String(req.body.namespace || '').trim();
-        const categoryKey = String(req.body.categoryKey || '').trim();
+        const namespace = String(body.namespace || '').trim();
+        const categoryKey = String(body.categoryKey || '').trim();
         if (!namespace) return res.status(400).json({ message: 'Missing namespace' });
         if (!categoryKey) return res.status(400).json({ message: 'Missing categoryKey' });
 
-        const payload = req.body.entry || {};
+        const payload = body.entry || {};
         const payloadId = payload.id ? String(payload.id) : null;
         // Client may send fake ids like "ins-12345" for new rows.
         // Only treat ids as update-ids when they are valid Mongo ObjectIds.

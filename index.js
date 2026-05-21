@@ -8,6 +8,7 @@ const path = require('path');
 const authRoutes = require('./routes/auth');
 const departmentRoutes = require('./routes/departments');
 const planRoutes = require('./routes/plans');
+const productRoutes = require('./routes/products');
 const userRoutes = require('./routes/users');
 const hrRoutes = require('./routes/hr');
 const insuranceRoutes = require('./routes/insurance');
@@ -22,11 +23,14 @@ const app = express();
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/departments', departmentRoutes);
 app.use('/api/plans', planRoutes);
+app.use('/api/products', productRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/hr', hrRoutes);
 app.use('/api/resigned-employees', resignedEmployeeRoutes);

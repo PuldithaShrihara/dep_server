@@ -106,9 +106,10 @@ const departmentEditMiddleware = async (req, res, next) => {
         const Plan = require('../models/Plan');
 
         let targetDepartment = null;
+        const body = req.body || {};
 
-        if (req.body.department) {
-            targetDepartment = await Department.findById(req.body.department);
+        if (body.department) {
+            targetDepartment = await Department.findById(body.department);
             if (!targetDepartment) {
                 return res.status(404).json({ message: 'Department not found' });
             }

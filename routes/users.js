@@ -119,7 +119,7 @@ router.post('/', async (req, res) => {
             department,
             status,
             allowMultipleDepartmentHeads
-        } = req.body;
+        } = req.body || {};
 
         if (!API_ROLES.includes(role)) {
             return res.status(400).json({ message: 'Invalid role' });
@@ -209,7 +209,7 @@ router.patch('/:id', async (req, res) => {
             department,
             status,
             allowMultipleDepartmentHeads
-        } = req.body;
+        } = req.body || {};
 
         let nextRole = user.role;
         let nextDept = user.department;
@@ -299,7 +299,7 @@ router.post('/:id/reset-password', async (req, res) => {
             return res.status(400).json({ message: 'Invalid user id' });
         }
 
-        const { newPassword, confirmPassword } = req.body;
+        const { newPassword, confirmPassword } = req.body || {};
         if (!newPassword || newPassword !== confirmPassword) {
             return res.status(400).json({ message: 'New password and confirmation must match' });
         }
