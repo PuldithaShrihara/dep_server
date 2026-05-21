@@ -1,4 +1,5 @@
 const express = require('express');
+const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
 const Product = require('../models/Product');
@@ -7,15 +8,19 @@ const { authMiddleware } = require('../middleware/auth');
 
 const upload = multer({
     storage: multer.diskStorage({
-        destination: (req, file, cb) => cb(null, path.join(__dirname, '..', 'uploads')),
+        destination: (req, file, cb) => {
+            const uploadDir = path.join(__dirname, '..', 'uploads', 'products');
+            fs.mkdirSync(uploadDir, { recursive: true });
+            cb(null, uploadDir);
+        },
         filename: (req, file, cb) => {
             const safeName = `${Date.now()}-${file.originalname.replace(/\s+/g, '-')}`;
             cb(null, safeName);
         }
     }),
     fileFilter: (req, file, cb) => {
-        if (file.mimetype !== 'image/png') {
-            return cb(new Error('Only PNG files are allowed'));
+        if (!file.mimetype.startsWith('image/')) {
+            return cb(new Error('Only image files are allowed'));
         }
         cb(null, true);
     }
@@ -42,19 +47,17 @@ router.get('/', authMiddleware, async (req, res) => {
 });
 
 router.post('/', authMiddleware, upload.single('image'), async (req, res) => {
-    console.log('PRODUCT ROUTE HIT');
-    logRequestDebug(req);
-
     try {
         const body = req.body && typeof req.body === 'object' ? req.body : {};
-        if (!req.body || typeof req.body !== 'object') {
-            console.warn('WARN /api/products received invalid req.body:', req.body);
-        }
-        const { name, description = '', category = '', imageUrl = '', image = '', planId, departmentId } = body;
-        const imagePath = req.file ? `/uploads/${req.file.filename}` : imageUrl || image || '';
+        const { name, description = '', category = '', planId, departmentId } = body;
+        const imagePath = req.file ? `/uploads/products/${req.file.filename}` : '';
 
         if (!name || !name.trim()) {
             return res.status(400).json({ message: 'Product name is required' });
+        }
+
+        if (!req.file) {
+            return res.status(400).json({ message: 'Please upload a product image.' });
         }
 
         let linkedPlan = null;
@@ -70,6 +73,7 @@ router.post('/', authMiddleware, upload.single('image'), async (req, res) => {
             description: description || '',
             category: category || '',
             image: imagePath,
+            imageUrl: imagePath,
             planId: planId || null,
             departmentId: departmentId || linkedPlan?.department || null
         });
@@ -82,6 +86,7 @@ router.post('/', authMiddleware, upload.single('image'), async (req, res) => {
                 name: savedProduct.name,
                 description: savedProduct.description,
                 image: savedProduct.image,
+                imageUrl: savedProduct.imageUrl,
                 category: savedProduct.category
             });
             await linkedPlan.save();

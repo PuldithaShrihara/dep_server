@@ -5,6 +5,7 @@ const productSchema = new mongoose.Schema({
     description: { type: String, default: '' },
     category: { type: String, default: '' },
     image: { type: String, default: '' },
+    imageUrl: { type: String, default: '' },
     planId: { type: mongoose.Schema.Types.ObjectId, ref: 'Plan', default: null },
     departmentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Department', default: null }
 }, { timestamps: true });

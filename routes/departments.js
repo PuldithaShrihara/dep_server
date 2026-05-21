@@ -1,18 +1,10 @@
 const express = require('express');
 const Department = require('../models/Department');
 const Plan = require('../models/Plan');
-const HrTask = require('../models/HrTask');
-const HrCompletion = require('../models/HrCompletion');
 const { authMiddleware } = require('../middleware/auth');
 const { migrateLegacyRdTasksToNested, isSubtaskComplete } = require('../utils/rdTasks');
 
 const router = express.Router();
-
-const monthToNum = (m) => {
-    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-    const idx = months.indexOf(m);
-    return idx !== -1 ? idx + 1 : 0;
-};
 
 const calculatePlanPercentage = (plan, departmentName) => {
     if (departmentName === 'R&D') {
@@ -70,65 +62,17 @@ router.get('/', authMiddleware, async (req, res) => {
     try {
         const departments = await Department.find().lean();
         
-        const now = new Date();
-        const currentMonth = now.getMonth() + 1;
-        const currentYear = now.getFullYear();
-
         for (const dept of departments) {
-            if (dept.name === 'Admin') {
-                const total = await HrTask.countDocuments();
-                // Try current month first
-                let completed = await HrCompletion.countDocuments({ 
-                    month: currentMonth, 
-                    year: currentYear 
-                });
-                
-                // If current month is empty, find the latest month with data
-                if (completed === 0 && total > 0) {
-                    const latest = await HrCompletion.findOne().sort({ year: -1, month: -1 });
-                    if (latest) {
-                        completed = await HrCompletion.countDocuments({
-                            month: latest.month,
-                            year: latest.year
-                        });
-                    }
-                }
-                
-                dept.completionPercent = total > 0 ? Math.round((completed / total) * 100) : 0;
+            const plans = await Plan.find({ department: dept._id }).lean();
+
+            if (plans.length > 0) {
+                const totalProgress = plans.reduce((sum, plan) => {
+                    return sum + calculatePlanPercentage(plan, dept.name);
+                }, 0);
+
+                dept.completionPercent = Math.round(totalProgress / plans.length);
             } else {
-                // Fetch all plans and sort them correctly
-                const plans = await Plan.find({ department: dept._id }).lean();
-                
-                if (plans.length > 0) {
-                    plans.sort((a, b) => {
-                        if (a.year !== b.year) return b.year - a.year;
-                        const ma = monthToNum(a.month);
-                        const mb = monthToNum(b.month);
-                        if (ma !== mb) return mb - ma;
-                        return new Date(b.updatedAt) - new Date(a.updatedAt);
-                    });
-
-                    // Find the first plan that actually has data
-                    let planToUse = null;
-                    for (const p of plans) {
-                        const hasData = p.tasks.some(t => 
-                            (t.product && t.product.trim()) || 
-                            (t.mainGoal && t.mainGoal.trim()) || 
-                            (t.description && t.description.trim())
-                        );
-                        if (hasData) {
-                            planToUse = p;
-                            break;
-                        }
-                    }
-
-                    // Fallback to latest chronological if all are empty
-                    if (!planToUse) planToUse = plans[0];
-                    
-                    dept.completionPercent = calculatePlanPercentage(planToUse, dept.name);
-                } else {
-                    dept.completionPercent = 0;
-                }
+                dept.completionPercent = 0;
             }
         }
         
