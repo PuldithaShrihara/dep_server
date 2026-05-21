@@ -97,16 +97,17 @@ router.post('/', authMiddleware, departmentEditMiddleware, async (req, res) => {
             console.log(`[DEBUG] Last plan found with products: ${lastPlan ? lastPlan.title : 'NONE'}`);
 
             const MARKETING_TEMPLATE = [
-                { name: 'FADNA TEA', category: 'Fadna', image: '/skincare_product_1_1778561641568.png' },
-                { name: 'SATINY', category: 'Quality of Life', image: '/skincare_product_2_1778561675994.png' },
-                { name: 'MOIST CURL', category: 'Quality of Life', image: '/skincare_product_3_1778561699216.png' },
-                { name: 'ZETGAIN', category: 'Quality of Life', image: '/skincare_product_1_1778561641568.png' },
-                { name: 'GLORREA', category: 'Quality of Life', image: '/skincare_product_2_1778561675994.png' },
-                { name: 'ACNEME', category: 'Quality of Life', image: '/skincare_product_3_1778561699216.png' },
-                { name: 'EYEON', category: 'Quality of Life', image: '/skincare_product_1_1778561641568.png' },
-                { name: 'GLOMIX', category: 'Quality of Life', image: '/skincare_product_2_1778561675994.png' },
+                { name: 'FADNA TEA', category: 'Fadna', image: '/fadnatea.png' },
+                { name: 'SATINY', category: 'Quality of Life', image: '/satiny.png' },
+                { name: 'MOIST CURL', category: 'Quality of Life', image: '/moistcurl.png' },
+                { name: 'ZEITGAIN', category: 'Quality of Life', image: '/zeitgain.png' },
+                { name: 'ACNEAM', category: 'Quality of Life', image: '/acneam.png' },
+                { name: 'CLEOMARK', category: 'Quality of Life', image: '/cleomark.png' },
+                { name: 'EYEON', category: 'Quality of Life', image: '/eyeon.png' },
+                { name: 'GLORRYA', category: 'Quality of Life', image: '/glorrya.png' },
+                { name: 'GLOMIX', category: 'Quality of Life', image: '/glomix.png' },
                 { name: 'LIVER U', category: 'Life Science', image: '/skincare_product_3_1778561699216.png' },
-                { name: 'ORTHOSHIELD', category: 'Life Science', image: '/skincare_product_1_1778561641568.png' },
+                { name: 'ORTHOSHIELD', category: 'Life Science', image: '/orthoshield.png' },
                 { name: 'M+', category: 'Life Science', image: '/skincare_product_2_1778561675994.png' }
             ];
 
