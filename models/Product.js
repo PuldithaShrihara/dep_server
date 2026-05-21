@@ -7,7 +7,7 @@ const productSchema = new mongoose.Schema({
     image: { type: String, default: '' },
     imageUrl: { type: String, default: '' },
     planId: { type: mongoose.Schema.Types.ObjectId, ref: 'Plan', default: null },
-    departmentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Department', default: null }
+    departmentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Department', required: true }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Product', productSchema);

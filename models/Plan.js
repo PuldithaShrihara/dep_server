@@ -81,6 +81,11 @@ const planSchema = new mongoose.Schema({
         expectedOutcome: String,
         duration: String,
         attachments: String
+        _isSubtask: { type: Boolean, default: false },
+        productImage: String,
+        expectedOutcome: String,
+        duration: String,
+        attachments: String
     }],
     /** R&D nested main tasks with subtasks (parent-child). Legacy flat `tasks` may still exist until migrated. */
     rdMainTasks: {
@@ -88,12 +93,8 @@ const planSchema = new mongoose.Schema({
         default: undefined
     },
     products: [{
-        productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },
-        name: { type: String, required: true },
-        description: { type: String },
-        image: { type: String },
-        imageUrl: { type: String },
-        category: { type: String }
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Product'
     }]
 }, { timestamps: true });
 

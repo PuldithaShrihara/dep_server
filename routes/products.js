@@ -81,14 +81,7 @@ router.post('/', authMiddleware, upload.single('image'), async (req, res) => {
         const savedProduct = await product.save();
 
         if (linkedPlan) {
-            linkedPlan.products.push({
-                productId: savedProduct._id,
-                name: savedProduct.name,
-                description: savedProduct.description,
-                image: savedProduct.image,
-                imageUrl: savedProduct.imageUrl,
-                category: savedProduct.category
-            });
+            linkedPlan.products.push(savedProduct._id);
             await linkedPlan.save();
         }
 

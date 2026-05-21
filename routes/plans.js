@@ -119,7 +119,52 @@ function formatDateTime(value) {
 router.get('/department/:deptId', authMiddleware, async (req, res) => {
     try {
         const dept = await Department.findById(req.params.deptId);
-        const plans = await Plan.find({ department: req.params.deptId }).sort({ year: -1, month: -1 }).lean();
+        const plans = await Plan.find({ department: req.params.deptId }).populate('products').sort({ year: -1, month: -1 }).lean();
+
+        if (dept && dept.name === 'Admin') {
+            const totalTasks = await HrTask.countDocuments();
+            // Helper to convert month name/number to number 1-12
+            const monthToNum = (m) => {
+                const s = String(m || '').trim().toLowerCase();
+                const n = parseInt(s, 10);
+                if (!Number.isNaN(n) && n >= 1 && n <= 12) return n;
+                const months = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+                const idx = months.indexOf(s);
+                return idx !== -1 ? idx + 1 : null;
+            };
+
+            console.log(`[BACKEND] Processing ${plans.length} plans for ADMIN department`);
+
+            for (const plan of plans) {
+                const mNum = monthToNum(plan.month);
+                if (mNum) {
+                    const completedCount = await HrCompletion.countDocuments({
+                        month: mNum,
+                        year: plan.year
+                    });
+                    plan.hrStats = {
+                        total: totalTasks,
+                        completed: completedCount,
+                        percentage: totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0
+                    };
+                } else {
+                    plan.hrStats = { total: totalTasks, completed: 0, percentage: 0 };
+                }
+            }
+        }
+
+        res.json(plans);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+
+// Get plans for a department - ALL authenticated users can view
+router.get('/department/:deptId', authMiddleware, async (req, res) => {
+    try {
+        const dept = await Department.findById(req.params.deptId);
+        const plans = await Plan.find({ department: req.params.deptId }).populate('products').sort({ year: -1, month: -1 }).lean();
 
         if (dept && dept.name === 'Admin') {
             const totalTasks = await HrTask.countDocuments();
@@ -165,6 +210,9 @@ router.post('/', authMiddleware, departmentEditMiddleware, async (req, res) => {
     const { department, month, year, title, description, target, tasks, rdMainTasks, productIds } = req.body || {};
 
     try {
+        const existingProducts = await Product.find({ departmentId: department }).select('_id');
+        const autoProductIds = existingProducts.map(p => p._id);
+
         const newPlan = new Plan({
             department,
             month,
@@ -173,20 +221,9 @@ router.post('/', authMiddleware, departmentEditMiddleware, async (req, res) => {
             description,
             target,
             tasks: normalizeMarketingTaskCompletionDates(cascadeCompletedMarketingMainTasks(tasks || [])),
-            rdMainTasks: rdMainTasks !== undefined ? rdMainTasks : undefined
+            rdMainTasks: rdMainTasks !== undefined ? rdMainTasks : undefined,
+            products: autoProductIds
         });
-
-        if (Array.isArray(productIds) && productIds.length > 0) {
-            const products = await Product.find({ _id: { $in: productIds } });
-            newPlan.products = products.map(p => ({
-                productId: p._id,
-                name: p.name,
-                description: p.description,
-                image: p.image,
-                imageUrl: p.imageUrl,
-                category: p.category
-            }));
-        }
 
         // Ensure tasks is always an array
         if (!newPlan.tasks) newPlan.tasks = [];
@@ -213,7 +250,8 @@ router.post('/', authMiddleware, departmentEditMiddleware, async (req, res) => {
             reconcileRdMainTasks(savedPlan.rdMainTasks);
             await savedPlan.save();
         }
-        res.status(201).json(savedPlan);
+        const populatedPlan = await Plan.findById(savedPlan._id).populate('products').populate('department');
+        res.status(201).json(populatedPlan);
     } catch (err) {
         console.error('Error creating plan:', err);
         res.status(400).json({ message: err.message, error: err });
@@ -242,7 +280,9 @@ router.put('/:id', authMiddleware, departmentEditMiddleware, async (req, res) =>
             return res.status(404).json({ message: 'Plan not found' });
         }
 
-        res.json(plan);
+        const populatedPlan = await Plan.findById(plan._id).populate('products');
+
+        res.json(populatedPlan);
     } catch (error) {
         console.error('Error updating plan:', error);
         res.status(500).json({ message: error.message });
@@ -288,7 +328,9 @@ router.put('/:id/tasks', authMiddleware, departmentEditMiddleware, async (req, r
             await plan.save();
         }
 
-        res.json(plan);
+        const populatedPlan = await Plan.findById(plan._id).populate('products');
+
+        res.json(populatedPlan);
     } catch (err) {
         console.error('Error updating plan:', err);
         res.status(400).json({ message: err.message });
@@ -498,10 +540,11 @@ router.post('/:id/products', authMiddleware, departmentEditMiddleware, async (re
         }
 
         if (!plan.products) plan.products = [];
-        plan.products.push(productEntry);
+        plan.products.push(productId ? productEntry.productId : null); // Note: Since the schema requires ObjectId, we shouldn't push embedded objects anymore. 
 
         await plan.save();
-        res.status(201).json(plan);
+        const populatedPlan = await Plan.findById(plan._id).populate('products');
+        res.status(201).json(populatedPlan);
     } catch (err) {
         console.error('Error adding product:', err);
         res.status(400).json({ message: err.message });
