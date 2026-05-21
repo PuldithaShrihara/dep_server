@@ -79,27 +79,13 @@ const requireAdmin = (req, res, next) => {
     next();
 };
 
-// Admin: full access. Department heads: own department only. Users: no mutations.
+// Admin: full access (unless scoped). Department heads: own department only. Users: no mutations.
 const departmentEditMiddleware = async (req, res, next) => {
     try {
-        if (isAdminRole(req.user.role)) {
-            return next();
-        }
-
         if (isViewOnlyRole(req.user.role)) {
             return res.status(403).json({
                 message: 'Access denied: You have read-only access and cannot create, edit, or delete plans.'
             });
-        }
-
-        if (!isDepartmentHeadRole(req.user.role)) {
-            return res.status(403).json({ message: 'Access denied' });
-        }
-
-        if (!req.user.department) {
-            // If they are not in a View-Only role, and have no specific department assigned,
-            // it means they have "All Departments" (Global) access.
-            return next();
         }
 
         const Department = require('../models/Department');
@@ -126,11 +112,19 @@ const departmentEditMiddleware = async (req, res, next) => {
             }
         }
 
-        if (targetDepartment) {
-            if (req.user.department !== targetDepartment.name) {
-                return res.status(403).json({
-                    message: `Access denied: You can only edit plans for ${req.user.department} department`
-                });
+        // If user is restricted to a specific department, enforce it (EVEN FOR ADMINS)
+        if (req.user.department) {
+            if (targetDepartment) {
+                if (req.user.department !== targetDepartment.name) {
+                    return res.status(403).json({
+                        message: `Access denied: You can only edit plans for ${req.user.department} department`
+                    });
+                }
+            }
+        } else {
+            // If they are NOT restricted to a department, they must be an Admin or DeptHead to edit globally
+            if (!isAdminRole(req.user.role) && !isDepartmentHeadRole(req.user.role)) {
+                return res.status(403).json({ message: 'Access denied' });
             }
         }
 
