@@ -38,6 +38,40 @@ function isMarketingTaskCompleted(task) {
     return status === 'completed' || (task?.done === true && !status);
 }
 
+function isMarketingSubtask(task) {
+    return !!task?._isSubtask || (task?.product === '' && (task?.mediaType !== '' || task?.mainGoal !== ''));
+}
+
+function completeMarketingTask(task, completedAt) {
+    return {
+        ...task,
+        done: true,
+        status: 'completed',
+        dateCompleted: task.dateCompleted || task.completedTime || completedAt,
+        completedTime: task.completedTime || formatDateTime(completedAt)
+    };
+}
+
+function cascadeCompletedMarketingMainTasks(tasks = []) {
+    if (!Array.isArray(tasks)) return tasks;
+
+    const cascaded = tasks.map((task) => ({ ...task }));
+
+    for (let index = 0; index < cascaded.length; index++) {
+        const task = cascaded[index];
+        if (isMarketingSubtask(task) || !isMarketingTaskCompleted(task)) continue;
+
+        const completedAt = task.dateCompleted || task.completedTime || new Date();
+
+        for (let childIndex = index + 1; childIndex < cascaded.length; childIndex++) {
+            if (!isMarketingSubtask(cascaded[childIndex])) break;
+            cascaded[childIndex] = completeMarketingTask(cascaded[childIndex], completedAt);
+        }
+    }
+
+    return cascaded;
+}
+
 function applyNestedCompletionDate(task, incomingStatus, incomingIsDone) {
     const status = incomingStatus !== undefined ? incomingStatus : task.status;
     const isDone = incomingIsDone !== undefined ? incomingIsDone : task.isDone;
@@ -138,7 +172,7 @@ router.post('/', authMiddleware, departmentEditMiddleware, async (req, res) => {
             title,
             description,
             target,
-            tasks: normalizeMarketingTaskCompletionDates(tasks || []),
+            tasks: normalizeMarketingTaskCompletionDates(cascadeCompletedMarketingMainTasks(tasks || [])),
             rdMainTasks: rdMainTasks !== undefined ? rdMainTasks : undefined
         });
 
@@ -271,7 +305,7 @@ router.put('/:id/tasks', authMiddleware, departmentEditMiddleware, async (req, r
         if (description !== undefined) plan.description = description;
         if (target !== undefined) plan.target = target;
         if (tasks !== undefined) {
-            plan.tasks = normalizeMarketingTaskCompletionDates(tasks, plan.tasks || []);
+            plan.tasks = normalizeMarketingTaskCompletionDates(cascadeCompletedMarketingMainTasks(tasks), plan.tasks || []);
             // Also update rdMainTasks if this is an R&D department plan
             const dept = await Department.findById(plan.department);
             if (dept && dept.name === 'R&D') {
