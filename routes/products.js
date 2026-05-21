@@ -66,10 +66,14 @@ router.post('/', authMiddleware, upload.single('image'), async (req, res) => {
         }
 
         let linkedPlan = null;
+        let finalDeptId = departmentId || null;
         if (planId) {
             linkedPlan = await Plan.findById(planId);
             if (!linkedPlan) {
                 return res.status(404).json({ message: 'Plan not found' });
+            }
+            if (!finalDeptId && linkedPlan.department) {
+                finalDeptId = linkedPlan.department;
             }
         }
 
@@ -86,9 +90,9 @@ router.post('/', authMiddleware, upload.single('image'), async (req, res) => {
 
         const savedProduct = await product.save();
 
-        if (finalDeptId) {
-            await Plan.updateMany(
-                { department: finalDeptId },
+        if (linkedPlan) {
+            await Plan.findByIdAndUpdate(
+                linkedPlan._id,
                 { $addToSet: { products: savedProduct._id } }
             );
         }

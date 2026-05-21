@@ -2,3 +2,11 @@
 {"body":{"name":"satiny","description":"","category":"Quality of Life","planId":"6a0e72a10d410501ad9ee345","departmentId":"69e8730b23665ef8fa2e47c7"},"file":"satiny (1).png"}
 {"body":{"name":"moist curl","description":"","category":"Quality of Life","planId":"6a0e72a10d410501ad9ee345","departmentId":"69e8730b23665ef8fa2e47c7"},"file":"01.png"}
 {"body":{"name":"orthoshield","description":"","category":"Life Science","planId":"6a0e72a10d410501ad9ee345","departmentId":"69e8730b23665ef8fa2e47c7"},"file":"orthoshield.png"}
+{"body":{"name":"glorrya","description":"","category":"Quality of Life","planId":"6a0ec926c1a58c9a5be1f711","departmentId":"69e8730b23665ef8fa2e47c7"},"file":"leaflet (2).png"}
+{"body":{"name":"glorrya","description":"","category":"Quality of Life","planId":"6a0ec926c1a58c9a5be1f711","departmentId":"69e8730b23665ef8fa2e47c7"},"file":"leaflet (2).png"}
+{"body":{"name":"gloorya","description":"","category":"Quality of Life","planId":"6a0e72a10d410501ad9ee345","departmentId":"69e8730b23665ef8fa2e47c7"},"file":"leaflet (2).png"}
+{"body":{"name":"zeitgain","description":"","category":"Quality of Life","planId":"6a0e72a10d410501ad9ee345","departmentId":"69e8730b23665ef8fa2e47c7"},"file":"leaflet.png"}
+{"body":{"name":"eyeon","description":"","category":"Quality of Life","planId":"6a0e72a10d410501ad9ee345","departmentId":"69e8730b23665ef8fa2e47c7"},"file":"leaflet (1).png"}
+{"body":{"name":"eyeon","description":"","category":"Quality of Life","planId":"6a0e72a10d410501ad9ee345","departmentId":"69e8730b23665ef8fa2e47c7"},"file":"leaflet (1).png"}
+{"body":{"name":"zeitgain","description":"","category":"Quality of Life","planId":"6a0ec926c1a58c9a5be1f711","departmentId":"69e8730b23665ef8fa2e47c7"},"file":"leaflet.png"}
+{"body":{"name":"zeitgain","description":"","category":"Quality of Life","planId":"6a0e72a10d410501ad9ee345","departmentId":"69e8730b23665ef8fa2e47c7"},"file":"leaflet.png"}
