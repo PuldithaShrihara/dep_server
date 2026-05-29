@@ -135,58 +135,20 @@ router.get('/department/:deptId', authMiddleware, async (req, res) => {
 
             console.log(`[BACKEND] Processing ${plans.length} plans for ADMIN department`);
 
-            for (const plan of plans) {
-                const mNum = monthToNum(plan.month);
-                if (mNum) {
-                    const completedCount = await HrCompletion.countDocuments({
-                        month: mNum,
-                        year: plan.year
-                    });
-                    plan.hrStats = {
-                        total: totalTasks,
-                        completed: completedCount,
-                        percentage: totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0
-                    };
-                } else {
-                    plan.hrStats = { total: totalTasks, completed: 0, percentage: 0 };
-                }
-            }
-        }
-
-        res.json(plans);
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
-});
-
-
-// Get plans for a department - ALL authenticated users can view
-router.get('/department/:deptId', authMiddleware, async (req, res) => {
-    try {
-        const dept = await Department.findById(req.params.deptId);
-        const plans = await Plan.find({ department: req.params.deptId }).populate('products').sort({ year: -1, month: -1 }).lean();
-
-        if (dept && dept.name === 'Admin') {
-            const totalTasks = await HrTask.countDocuments();
-            // Helper to convert month name/number to number 1-12
-            const monthToNum = (m) => {
-                const s = String(m || '').trim().toLowerCase();
-                const n = parseInt(s, 10);
-                if (!Number.isNaN(n) && n >= 1 && n <= 12) return n;
-                const months = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
-                const idx = months.indexOf(s);
-                return idx !== -1 ? idx + 1 : null;
-            };
-
-            console.log(`[BACKEND] Processing ${plans.length} plans for ADMIN department`);
+            // Use aggregation to fetch all counts at once
+            const hrCompletions = await HrCompletion.aggregate([
+                { $group: { _id: { month: "$month", year: "$year" }, count: { $sum: 1 } } }
+            ]);
+            
+            const completionMap = new Map();
+            hrCompletions.forEach(c => {
+                completionMap.set(`${c._id.month}-${c._id.year}`, c.count);
+            });
 
             for (const plan of plans) {
                 const mNum = monthToNum(plan.month);
                 if (mNum) {
-                    const completedCount = await HrCompletion.countDocuments({
-                        month: mNum,
-                        year: plan.year
-                    });
+                    const completedCount = completionMap.get(`${mNum}-${plan.year}`) || 0;
                     plan.hrStats = {
                         total: totalTasks,
                         completed: completedCount,

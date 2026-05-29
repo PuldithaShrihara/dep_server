@@ -62,8 +62,19 @@ router.get('/', authMiddleware, async (req, res) => {
     try {
         const departments = await Department.find().lean();
         
+        // Single optimized query with projection
+        const allPlans = await Plan.find({}, 'department tasks.product tasks.mainGoal tasks.description tasks.marketingChannel tasks.status tasks.done rdMainTasks.title rdMainTasks.status rdMainTasks.subtasks.title rdMainTasks.subtasks.status rdMainTasks.subtasks.isDone').lean();
+
+        // Group plans by department ID
+        const plansByDept = {};
+        for (const plan of allPlans) {
+            const deptId = plan.department.toString();
+            if (!plansByDept[deptId]) plansByDept[deptId] = [];
+            plansByDept[deptId].push(plan);
+        }
+        
         for (const dept of departments) {
-            const plans = await Plan.find({ department: dept._id }).lean();
+            const plans = plansByDept[dept._id.toString()] || [];
 
             if (plans.length > 0) {
                 const totalProgress = plans.reduce((sum, plan) => {
