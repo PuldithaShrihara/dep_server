@@ -37,6 +37,57 @@ const calculatePlanPercentage = (plan, departmentName) => {
         return totalItems === 0 ? 0 : Math.round((completedItems / totalItems) * 100);
     }
 
+    if (departmentName === 'Marketing') {
+        if (!plan.tasks || plan.tasks.length === 0) return 0;
+
+        // Find main tasks and their indices
+        const mainTasks = [];
+        const mainTaskIndices = [];
+        plan.tasks.forEach((t, idx) => {
+            const isSubtask = !!t._isSubtask || (t.product === '' && (t.mediaType !== '' || t.mainGoal !== ''));
+            if (isSubtask) return;
+
+            const isValid = (t.product && t.product.trim()) || 
+                            (t.mainGoal && t.mainGoal.trim()) || 
+                            (t.description && t.description.trim()) || 
+                            (t.marketingChannel && t.marketingChannel.trim());
+            if (isValid) {
+                mainTasks.push(t);
+                mainTaskIndices.push(idx);
+            }
+        });
+
+        if (mainTasks.length === 0) return 0;
+
+        let sumPct = 0;
+        mainTasks.forEach((t, i) => {
+            const mainTaskIdx = mainTaskIndices[i];
+            const isRowCompleted = t.done || (t.status || '').toLowerCase() === 'completed' || (t.status || '').toLowerCase() === 'published';
+            if (isRowCompleted) {
+                sumPct += 100;
+                return;
+            }
+
+            let totalSub = 0;
+            let doneSub = 0;
+            for (let sidx = mainTaskIdx + 1; sidx < plan.tasks.length; sidx++) {
+                const st = plan.tasks[sidx];
+                const isSt = !!st._isSubtask || (st.product === '' && (st.mediaType !== '' || st.mainGoal !== ''));
+                if (!isSt) break;
+                totalSub++;
+                if (st.done || (st.status || '').toLowerCase() === 'completed' || (st.status || '').toLowerCase() === 'published') {
+                    doneSub++;
+                }
+            }
+
+            if (totalSub > 0) {
+                sumPct += Math.round((doneSub / totalSub) * 100);
+            }
+        });
+
+        return Math.round(sumPct / mainTasks.length);
+    }
+
     if (!plan.tasks || plan.tasks.length === 0) return 0;
 
     // Strict filter: only count tasks that have actual content in key fields
