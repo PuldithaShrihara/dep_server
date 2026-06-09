@@ -58,7 +58,7 @@ router.use(authMiddleware, requireAdmin);
 
 router.get('/', async (req, res) => {
     try {
-        const { department, role, status } = req.query;
+        const { department, role, status, search, page, limit } = req.query;
         const filter = {};
         if (department && department !== 'all') filter.department = department;
         if (role && role !== 'all') {
@@ -70,6 +70,42 @@ router.get('/', async (req, res) => {
         }
         if (status && status !== 'all') filter.status = status;
 
+        if (search && String(search).trim() !== '') {
+            const searchRegex = new RegExp(String(search).trim(), 'i');
+            filter.$or = [
+                { username: searchRegex },
+                { fullName: searchRegex },
+                { email: searchRegex }
+            ];
+        }
+
+        // If 'page' parameter is provided, return paginated response
+        if (page !== undefined) {
+            const pageNum = Math.max(1, parseInt(page, 10) || 1);
+            const limitNum = Math.max(1, parseInt(limit, 10) || 10);
+            const skipNum = (pageNum - 1) * limitNum;
+
+            const totalRecords = await User.countDocuments(filter);
+            const totalPages = Math.ceil(totalRecords / limitNum);
+
+            const data = await User.find(filter)
+                .select('-password')
+                .sort({ role: 1, username: 1 })
+                .skip(skipNum)
+                .limit(limitNum)
+                .lean();
+
+            return res.json({
+                data,
+                currentPage: pageNum,
+                totalPages,
+                totalRecords,
+                hasNextPage: pageNum < totalPages,
+                hasPreviousPage: pageNum > 1
+            });
+        }
+
+        // Otherwise return all matching records as a raw array (backward compatibility)
         const users = await User.find(filter)
             .select('-password')
             .sort({ role: 1, username: 1 })

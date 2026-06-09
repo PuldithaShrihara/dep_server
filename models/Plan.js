@@ -93,4 +93,6 @@ const planSchema = new mongoose.Schema({
     }]
 }, { timestamps: true });
 
+planSchema.index({ department: 1, year: -1, month: -1 });
+
 module.exports = mongoose.model('Plan', planSchema);

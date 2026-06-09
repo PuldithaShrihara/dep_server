@@ -119,47 +119,73 @@ function formatDateTime(value) {
 router.get('/department/:deptId', authMiddleware, async (req, res) => {
     try {
         const dept = await Department.findById(req.params.deptId);
-        const plans = await Plan.find({ department: req.params.deptId }).populate('products').sort({ year: -1, month: -1 }).lean();
+        const { page, limit } = req.query;
 
-        if (dept && dept.name === 'Admin') {
-            const totalTasks = await HrTask.countDocuments();
-            // Helper to convert month name/number to number 1-12
-            const monthToNum = (m) => {
-                const s = String(m || '').trim().toLowerCase();
-                const n = parseInt(s, 10);
-                if (!Number.isNaN(n) && n >= 1 && n <= 12) return n;
-                const months = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
-                const idx = months.indexOf(s);
-                return idx !== -1 ? idx + 1 : null;
-            };
+        const baseQuery = Plan.find({ department: req.params.deptId })
+            .populate('products')
+            .select('-tasks -rdMainTasks')
+            .sort({ year: -1, month: -1 });
 
-            console.log(`[BACKEND] Processing ${plans.length} plans for ADMIN department`);
+        const monthToNum = (m) => {
+            const s = String(m || '').trim().toLowerCase();
+            const n = parseInt(s, 10);
+            if (!Number.isNaN(n) && n >= 1 && n <= 12) return n;
+            const months = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+            const idx = months.indexOf(s);
+            return idx !== -1 ? idx + 1 : null;
+        };
 
-            // Use aggregation to fetch all counts at once
-            const hrCompletions = await HrCompletion.aggregate([
-                { $group: { _id: { month: "$month", year: "$year" }, count: { $sum: 1 } } }
-            ]);
-            
-            const completionMap = new Map();
-            hrCompletions.forEach(c => {
-                completionMap.set(`${c._id.month}-${c._id.year}`, c.count);
-            });
+        const addHrStats = async (plansList) => {
+            if (dept && dept.name === 'Admin') {
+                const totalTasks = await HrTask.countDocuments();
+                const hrCompletions = await HrCompletion.aggregate([
+                    { $group: { _id: { month: "$month", year: "$year" }, count: { $sum: 1 } } }
+                ]);
+                
+                const completionMap = new Map();
+                hrCompletions.forEach(c => {
+                    completionMap.set(`${c._id.month}-${c._id.year}`, c.count);
+                });
 
-            for (const plan of plans) {
-                const mNum = monthToNum(plan.month);
-                if (mNum) {
-                    const completedCount = completionMap.get(`${mNum}-${plan.year}`) || 0;
-                    plan.hrStats = {
-                        total: totalTasks,
-                        completed: completedCount,
-                        percentage: totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0
-                    };
-                } else {
-                    plan.hrStats = { total: totalTasks, completed: 0, percentage: 0 };
+                for (const plan of plansList) {
+                    const mNum = monthToNum(plan.month);
+                    if (mNum) {
+                        const completedCount = completionMap.get(`${mNum}-${plan.year}`) || 0;
+                        plan.hrStats = {
+                            total: totalTasks,
+                            completed: completedCount,
+                            percentage: totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0
+                        };
+                    } else {
+                        plan.hrStats = { total: totalTasks, completed: 0, percentage: 0 };
+                    }
                 }
             }
+        };
+
+        if (page !== undefined) {
+            const pageNum = Math.max(1, parseInt(page, 10) || 1);
+            const limitNum = Math.max(1, parseInt(limit, 10) || 10);
+            const skipNum = (pageNum - 1) * limitNum;
+
+            const totalRecords = await Plan.countDocuments({ department: req.params.deptId });
+            const totalPages = Math.ceil(totalRecords / limitNum);
+
+            const plans = await baseQuery.skip(skipNum).limit(limitNum).lean();
+            await addHrStats(plans);
+
+            return res.json({
+                data: plans,
+                currentPage: pageNum,
+                totalPages,
+                totalRecords,
+                hasNextPage: pageNum < totalPages,
+                hasPreviousPage: pageNum > 1
+            });
         }
 
+        const plans = await baseQuery.lean();
+        await addHrStats(plans);
         res.json(plans);
     } catch (err) {
         res.status(500).json({ message: err.message });
