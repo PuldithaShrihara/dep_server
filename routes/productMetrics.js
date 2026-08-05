@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const authMiddleware = require('../middleware/auth');
-const { departmentEditMiddleware } = require('../middleware/departmentAuth');
+const { departmentEditMiddleware } = require('../middleware/auth');
 const ProductMetric = require('../models/ProductMetric');
 const Product = require('../models/Product');
 
@@ -61,17 +61,20 @@ router.put('/:productId/metrics', authMiddleware, departmentEditMiddleware, asyn
             return res.status(404).json({ message: 'Product not found' });
         }
 
-        // Validate non-negative numbers for budget and target if they exist
-        const validateNonNegative = (val) => {
-            if (val === '' || val === null || val === undefined) return true;
-            const num = Number(String(val).replace(/[^0-9.-]+/g, ""));
-            return isNaN(num) || num >= 0;
+        // Parse numbers properly, allowing null for empty values
+        const parseValue = (val) => {
+            if (val === '' || val === null || val === undefined) return null;
+            const parsed = Number(val);
+            return isNaN(parsed) ? null : parsed;
         };
 
-        if (!validateNonNegative(monthlyBudget)) {
+        const parsedBudget = parseValue(monthlyBudget);
+        const parsedTarget = parseValue(monthlyTarget);
+
+        if (parsedBudget !== null && parsedBudget < 0) {
             return res.status(400).json({ message: 'Monthly Budget cannot be negative' });
         }
-        if (!validateNonNegative(monthlyTarget)) {
+        if (parsedTarget !== null && parsedTarget < 0) {
             return res.status(400).json({ message: 'Monthly Target cannot be negative' });
         }
 
@@ -83,8 +86,8 @@ router.put('/:productId/metrics', authMiddleware, departmentEditMiddleware, asyn
             },
             {
                 $set: {
-                    monthlyBudget: monthlyBudget || '',
-                    monthlyTarget: monthlyTarget || '',
+                    monthlyBudget: parsedBudget,
+                    monthlyTarget: parsedTarget,
                     updatedBy: req.user.id
                 }
             },
