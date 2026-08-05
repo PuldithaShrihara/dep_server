@@ -70,11 +70,11 @@ router.put('/:productId/metrics', authMiddleware, departmentEditMiddleware, asyn
         const parsedBudget = parseValue(monthlyBudget);
         const parsedTarget = parseValue(monthlyTarget);
 
-        if (parsedBudget !== null && parsedBudget < 0) {
-            return res.status(400).json({ message: 'Monthly Budget cannot be negative' });
+        if (parsedBudget !== null && (!Number.isFinite(parsedBudget) || parsedBudget < 0)) {
+            return res.status(400).json({ message: 'Monthly Budget must be a valid non-negative finite number' });
         }
-        if (parsedTarget !== null && parsedTarget < 0) {
-            return res.status(400).json({ message: 'Monthly Target cannot be negative' });
+        if (parsedTarget !== null && (!Number.isFinite(parsedTarget) || parsedTarget < 0)) {
+            return res.status(400).json({ message: 'Monthly Target must be a valid non-negative finite number' });
         }
 
         const metric = await ProductMetric.findOneAndUpdate(
