@@ -82,11 +82,15 @@ const planSchema = new mongoose.Schema({
         duration: String,
         attachments: String
     }],
-    /** R&D nested main tasks with subtasks (parent-child). Legacy flat `tasks` may still exist until migrated. */
     rdMainTasks: {
         type: [rdMainTaskSchema],
         default: undefined
     },
+    productMetrics: [{
+        productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },
+        monthlyBudget: { type: String, default: '' },
+        monthlyTarget: { type: String, default: '' }
+    }],
     products: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Product'

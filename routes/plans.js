@@ -304,13 +304,14 @@ router.put('/:id/tasks', authMiddleware, departmentEditMiddleware, async (req, r
             return res.status(404).json({ message: 'Plan not found' });
         }
 
-        const { tasks, rdMainTasks, title, month, year, description, target } = req.body || {};
+        const { tasks, rdMainTasks, title, month, year, description, target, productMetrics } = req.body || {};
 
         if (title !== undefined) plan.title = title;
         if (month !== undefined) plan.month = month;
         if (year !== undefined) plan.year = year;
         if (description !== undefined) plan.description = description;
         if (target !== undefined) plan.target = target;
+        if (productMetrics !== undefined) plan.productMetrics = productMetrics;
         if (tasks !== undefined) {
             plan.tasks = normalizeMarketingTaskCompletionDates(cascadeCompletedMarketingMainTasks(tasks), plan.tasks || []);
             // Also update rdMainTasks if this is an R&D department plan
