@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const authMiddleware = require('../middleware/auth');
-const { departmentEditMiddleware } = require('../middleware/auth');
+const { authMiddleware, departmentEditMiddleware } = require('../middleware/auth');
 const ProductMetric = require('../models/ProductMetric');
 const Product = require('../models/Product');
 
