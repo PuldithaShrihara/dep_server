@@ -313,6 +313,28 @@ router.put('/:id/tasks', authMiddleware, departmentEditMiddleware, async (req, r
         if (target !== undefined) plan.target = target;
         if (productMetrics !== undefined) plan.productMetrics = productMetrics;
         if (tasks !== undefined) {
+            // Apply duration calculation to all tasks securely on backend
+            tasks.forEach(task => {
+                if (task.startDate && task.endDate) {
+                    const [sYear, sMonth, sDay] = task.startDate.split('-');
+                    const [eYear, eMonth, eDay] = task.endDate.split('-');
+                    if (sYear && sMonth && sDay && eYear && eMonth && eDay) {
+                        const start = Date.UTC(parseInt(sYear, 10), parseInt(sMonth, 10) - 1, parseInt(sDay, 10));
+                        const end = Date.UTC(parseInt(eYear, 10), parseInt(eMonth, 10) - 1, parseInt(eDay, 10));
+                        if (end < start) {
+                            task.duration = '';
+                        } else {
+                            const diffTime = Math.abs(end - start);
+                            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                            task.duration = diffDays === 1 ? '1 day' : `${diffDays} days`;
+                        }
+                    } else {
+                        task.duration = '';
+                    }
+                } else {
+                    task.duration = '';
+                }
+            });
             plan.tasks = normalizeMarketingTaskCompletionDates(cascadeCompletedMarketingMainTasks(tasks), plan.tasks || []);
             // Also update rdMainTasks if this is an R&D department plan
             const dept = await Department.findById(plan.department);

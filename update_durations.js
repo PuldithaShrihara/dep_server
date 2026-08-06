@@ -14,6 +14,8 @@ mongoose.connect(process.env.MONGO_URI).then(async () => {
         let duplicateDurationsSkip = 0;
 
         for (const plan of plans) {
+            let planChanged = false;
+
             for (const task of plan.tasks) {
                 if (task._isSubtask) {
                     subtasksFound++;
@@ -43,6 +45,8 @@ mongoose.connect(process.env.MONGO_URI).then(async () => {
                     const calculatedDuration = diffDays === 1 ? '1 day' : `${diffDays} days`;
                     
                     if (task.duration !== calculatedDuration) {
+                        task.duration = calculatedDuration;
+                        planChanged = true;
                         durationsToUpdate++;
                     } else {
                         duplicateDurationsSkip++; // Already has correct duration
@@ -51,12 +55,16 @@ mongoose.connect(process.env.MONGO_URI).then(async () => {
                     skippedInvalid++;
                 }
             }
+
+            if (planChanged) {
+                await plan.save();
+            }
         }
 
-        console.log(`Dry-Run Report:`);
+        console.log(`Update Report:`);
         console.log(`- Parent campaigns found: ${campaignsFound}`);
         console.log(`- Subtasks found: ${subtasksFound}`);
-        console.log(`- Durations to update: ${durationsToUpdate}`);
+        console.log(`- Durations updated: ${durationsToUpdate}`);
         console.log(`- Rows skipped (missing dates): ${skippedMissing}`);
         console.log(`- Rows skipped (invalid dates): ${skippedInvalid}`);
         console.log(`- Rows skipped (already correct): ${duplicateDurationsSkip}`);
