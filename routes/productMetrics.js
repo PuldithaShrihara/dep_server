@@ -61,21 +61,20 @@ router.put('/:productId/metrics', authMiddleware, departmentEditMiddleware, asyn
         }
 
         // Parse numbers properly, allowing null for empty values
-        const parseValue = (val) => {
+        const parseNumberValue = (val) => {
             if (val === '' || val === null || val === undefined) return null;
             const parsed = Number(val);
             return isNaN(parsed) ? null : parsed;
         };
 
-        const parsedBudget = parseValue(monthlyBudget);
-        const parsedTarget = parseValue(monthlyTarget);
+        const parsedTarget = parseNumberValue(monthlyTarget);
 
-        if (parsedBudget !== null && (!Number.isFinite(parsedBudget) || parsedBudget < 0)) {
-            return res.status(400).json({ message: 'Monthly Budget must be a valid non-negative finite number' });
-        }
         if (parsedTarget !== null && (!Number.isFinite(parsedTarget) || parsedTarget < 0)) {
             return res.status(400).json({ message: 'Monthly Target must be a valid non-negative finite number' });
         }
+
+        // Allow monthlyBudget to be any string, or null if empty
+        const finalBudget = (monthlyBudget === '' || monthlyBudget === null || monthlyBudget === undefined) ? null : String(monthlyBudget);
 
         const metric = await ProductMetric.findOneAndUpdate(
             { 
@@ -85,7 +84,7 @@ router.put('/:productId/metrics', authMiddleware, departmentEditMiddleware, asyn
             },
             {
                 $set: {
-                    monthlyBudget: parsedBudget,
+                    monthlyBudget: finalBudget,
                     monthlyTarget: parsedTarget,
                     updatedBy: req.user.id
                 }

@@ -4,7 +4,7 @@ const productMetricSchema = new mongoose.Schema({
     productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
     month: { type: String, required: true },
     year: { type: Number, required: true },
-    monthlyBudget: { type: Number, default: null },
+    monthlyBudget: { type: String, default: null },
     monthlyTarget: { type: Number, default: null },
     updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });
